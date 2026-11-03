@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-03T00:00:00Z",
+  "channels": [
+    {
+      "id": "example-channel",
+      "name": "Пример канала",
+      "category": "Основные",
+      "pageUrl": "https://example.org/channel-info",
+      "streamUrl": "https://cdn.example.org/live/playlist.m3u8"
+    }
+  ]
+}
