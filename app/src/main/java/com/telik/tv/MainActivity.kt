@@ -1,6 +1,9 @@
 package com.telik.tv
 
 import android.os.Bundle
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -32,7 +35,14 @@ import org.json.JSONObject
 import java.net.URL
 
 private const val DEFAULT_CATALOGUE = "https://raw.githubusercontent.com/pfaffenrot13-creator/Telik-TV/main/channels.json"
-data class Channel(val id: String, val name: String, val url: String, val category: String, val logo: String = "")
+data class Channel(
+    val id: String,
+    val name: String,
+    val url: String,
+    val category: String,
+    val logo: String = "",
+    val embedUrl: String = ""
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,9 +84,16 @@ fun TelikTvApp() {
                     (0 until array.length()).mapNotNull { i ->
                         val item = array.getJSONObject(i)
                         val stream = item.optString("url").ifBlank { item.optString("streamUrl") }
-                        if (stream.isBlank() || !stream.startsWith("https://")) null else Channel(
-                            item.optString("id", stream), item.optString("name", "Канал"),
-                            stream, item.optString("category", "Другое"), item.optString("logo")
+                        val embed = item.optString("embedUrl")
+                        val validStream = stream.startsWith("https://")
+                        val validEmbed = isAllowedEmbed(embed)
+                        if (!validStream && !validEmbed) null else Channel(
+                            item.optString("id").ifBlank { stream.ifBlank { embed } },
+                            item.optString("name", "Канал"),
+                            if (validStream) stream else "",
+                            item.optString("category", "Другое"),
+                            item.optString("logo"),
+                            if (validEmbed) embed else ""
                         )
                     }
                 }
@@ -91,9 +108,13 @@ fun TelikTvApp() {
 
     DisposableEffect(player) { onDispose { player.release() } }
     LaunchedEffect(Unit) { loadCatalogue() }
-    LaunchedEffect(selected?.url) {
-        selected?.let {
-            player.setMediaItem(MediaItem.fromUri(it.url))
+    LaunchedEffect(selected?.url, selected?.embedUrl) {
+        val channel = selected
+        if (channel == null || channel.embedUrl.isNotBlank()) {
+            player.stop()
+            player.clearMediaItems()
+        } else {
+            player.setMediaItem(MediaItem.fromUri(channel.url))
             player.prepare()
             player.playWhenReady = true
         }
@@ -105,7 +126,12 @@ fun TelikTvApp() {
                 Text("TELIK-TV", color = Color(0xFF70D6C1), fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Box(Modifier.weight(1f).fillMaxWidth().background(Color.Black, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                    AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
+                    val current = selected
+                    if (current?.embedUrl?.isNotBlank() == true) {
+                        OfficialEmbedPlayer(current.embedUrl, Modifier.fillMaxSize())
+                    } else {
+                        AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
+                    }
                     if (selected == null) Text("Выберите канал", color = Color.White)
                 }
                 Spacer(Modifier.height(8.dp))
@@ -158,4 +184,47 @@ fun TelikTvApp() {
             dismissButton = { TextButton(onClick = { showSettings = false }) { Text("Отмена") } }
         )
     }
+}
+
+
+private fun isAllowedEmbed(raw: String): Boolean {
+    if (!raw.startsWith("https://")) return false
+    return try {
+        val host = java.net.URI(raw).host?.lowercase() ?: return false
+        host == "vk.com" || host.endsWith(".vk.com") ||
+            host == "vkvideo.ru" || host.endsWith(".vkvideo.ru") ||
+            host == "ok.ru" || host.endsWith(".ok.ru") ||
+            host == "odnoklassniki.ru" || host.endsWith(".odnoklassniki.ru") ||
+            host == "rutube.ru" || host.endsWith(".rutube.ru") ||
+            host == "stream.1tv.ru"
+    } catch (_: Exception) {
+        false
+    }
+}
+
+@Composable
+private fun OfficialEmbedPlayer(embedUrl: String, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                webChromeClient = WebChromeClient()
+                webViewClient = WebViewClient()
+                setBackgroundColor(android.graphics.Color.BLACK)
+                tag = embedUrl
+                loadUrl(embedUrl)
+            }
+        },
+        update = { view ->
+            if (view.tag != embedUrl) {
+                view.tag = embedUrl
+                view.loadUrl(embedUrl)
+            }
+        }
+    )
 }
