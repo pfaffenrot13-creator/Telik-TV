@@ -31,6 +31,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
 
+private const val DEFAULT_CATALOGUE = "https://raw.githubusercontent.com/pfaffenrot13-creator/Telik-TV/main/channels.json"
 data class Channel(val id: String, val name: String, val url: String, val category: String, val logo: String = "")
 
 class MainActivity : ComponentActivity() {
@@ -43,33 +44,36 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TelikTvApp() {
     val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("telik_tv", android.content.Context.MODE_PRIVATE) }
     val player = remember { ExoPlayer.Builder(context).build() }
     var channels by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var selected by remember { mutableStateOf<Channel?>(null) }
     var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Все") }
-    var favorites by remember { mutableStateOf(setOf<String>()) }
+    var favorites by remember { mutableStateOf(prefs.getStringSet("favorites", emptySet()) ?: emptySet()) }
     var onlyFavorites by remember { mutableStateOf(false) }
-    var catalogueUrl by remember { mutableStateOf("https://example.com/channels.json") }
-    var status by remember { mutableStateOf("Укажите HTTPS-адрес каталога каналов и нажмите обновить") }
+    var catalogueUrl by remember { mutableStateOf(prefs.getString("catalogue_url", DEFAULT_CATALOGUE) ?: DEFAULT_CATALOGUE) }
+    var status by remember { mutableStateOf("Подключение к открытому каталогу…") }
     var showSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun loadCatalogue() {
         scope.launch {
-            status = "Обновление списка каналов…"
+            status = "Обновление открытого каталога…"
             try {
                 val loaded = withContext(Dispatchers.IO) {
                     require(catalogueUrl.startsWith("https://")) { "Разрешены только HTTPS-адреса" }
-                    val text = URL(catalogueUrl).openConnection().apply {
-                        connectTimeout = 12000
-                        readTimeout = 15000
-                    }.getInputStream().bufferedReader().use { it.readText() }
+                    val connection = URL(catalogueUrl).openConnection().apply {
+                        connectTimeout = 15000
+                        readTimeout = 20000
+                        setRequestProperty("User-Agent", "Telik-TV/1.0")
+                    }
+                    val text = connection.getInputStream().bufferedReader().use { it.readText() }
                     val root = JSONObject(text)
                     val array = root.getJSONArray("channels")
                     (0 until array.length()).mapNotNull { i ->
                         val item = array.getJSONObject(i)
-                        val stream = item.optString("url")
+                        val stream = item.optString("url").ifBlank { item.optString("streamUrl") }
                         if (stream.isBlank() || !stream.startsWith("https://")) null else Channel(
                             item.optString("id", stream), item.optString("name", "Канал"),
                             stream, item.optString("category", "Другое"), item.optString("logo")
@@ -77,15 +81,16 @@ fun TelikTvApp() {
                     }
                 }
                 channels = loaded
-                status = "Каналов загружено: ${loaded.size}"
+                status = if (loaded.isEmpty()) "Каталог доступен, но в нём нет каналов" else "Каналов загружено: ${loaded.size}"
                 if (selected == null && loaded.isNotEmpty()) selected = loaded.first()
             } catch (e: Exception) {
-                status = "Ошибка каталога: ${e.localizedMessage ?: "проверьте адрес"}"
+                status = "Ошибка каталога: ${e.localizedMessage ?: "проверьте интернет"}"
             }
         }
     }
 
     DisposableEffect(player) { onDispose { player.release() } }
+    LaunchedEffect(Unit) { loadCatalogue() }
     LaunchedEffect(selected?.url) {
         selected?.let {
             player.setMediaItem(MediaItem.fromUri(it.url))
@@ -110,11 +115,11 @@ fun TelikTvApp() {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(query, { query = it }, Modifier.weight(1f), label = { Text("Поиск каналов") }, singleLine = true)
-                    IconButton(onClick = { onlyFavorites = !onlyFavorites }) { Icon(Icons.Default.Favorite, "Избранное", tint = if (onlyFavorites) Color(0xFFFF6B81) else Color.White) }
+                    IconButton(onClick = { onlyFavorites = !onlyFavorites; category = if (onlyFavorites) "Избранное" else "Все" }) { Icon(Icons.Default.Favorite, "Избранное", tint = if (onlyFavorites) Color(0xFFFF6B81) else Color.White) }
                     IconButton(onClick = { loadCatalogue() }) { Icon(Icons.Default.Refresh, "Обновить", tint = Color.White) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    TextButton(onClick = { category = "Все" }) { Text("Все") }
+                    TextButton(onClick = { category = "Все"; onlyFavorites = false }) { Text("Все") }
                     TextButton(onClick = { category = "Избранное"; onlyFavorites = true }) { Text("Избранное") }
                     TextButton(onClick = { showSettings = true }) { Text("Настройки") }
                 }
@@ -129,7 +134,10 @@ fun TelikTvApp() {
                     }) { channel ->
                         Row(Modifier.fillMaxWidth().background(if (selected?.id == channel.id) Color(0xFF24433F) else Color(0xFF1A2833), RoundedCornerShape(8.dp)).clickable { selected = channel }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(channel.name, Modifier.weight(1f), color = Color.White)
-                            IconButton(onClick = { favorites = if (favorites.contains(channel.id)) favorites - channel.id else favorites + channel.id }) {
+                            IconButton(onClick = {
+                                favorites = if (favorites.contains(channel.id)) favorites - channel.id else favorites + channel.id
+                                prefs.edit().putStringSet("favorites", favorites).apply()
+                            }) {
                                 Icon(Icons.Default.Favorite, "В избранное", tint = if (favorites.contains(channel.id)) Color(0xFFFF6B81) else Color.Gray)
                             }
                         }
@@ -141,7 +149,12 @@ fun TelikTvApp() {
             onDismissRequest = { showSettings = false },
             title = { Text("Каталог каналов") },
             text = { OutlinedTextField(catalogueUrl, { catalogueUrl = it }, label = { Text("HTTPS URL channels.json") }) },
-            confirmButton = { TextButton(onClick = { showSettings = false; loadCatalogue() }) { Text("Сохранить и обновить") } },
+            confirmButton = { TextButton(onClick = {
+                prefs.edit().putString("catalogue_url", catalogueUrl.trim()).apply()
+                catalogueUrl = catalogueUrl.trim()
+                showSettings = false
+                loadCatalogue()
+            }) { Text("Сохранить и обновить") } },
             dismissButton = { TextButton(onClick = { showSettings = false }) { Text("Отмена") } }
         )
     }
