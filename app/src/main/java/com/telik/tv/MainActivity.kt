@@ -243,8 +243,12 @@ private fun OfficialEmbedPlayer(embedUrl: String, modifier: Modifier = Modifier)
 }
 
 private fun parseChannels(raw: String): List<Channel> {
-    val root = JSONObject(raw)
-    val array = root.optJSONArray("channels") ?: return emptyList()
+    val parsed = org.json.JSONTokener(raw).nextValue()
+    val array = when (parsed) {
+        is org.json.JSONArray -> parsed
+        is JSONObject -> parsed.optJSONArray("channels") ?: return emptyList()
+        else -> return emptyList()
+    }
     return (0 until array.length()).mapNotNull { i ->
         val item = array.optJSONObject(i) ?: return@mapNotNull null
         val stream = item.optString("url").ifBlank { item.optString("streamUrl") }
