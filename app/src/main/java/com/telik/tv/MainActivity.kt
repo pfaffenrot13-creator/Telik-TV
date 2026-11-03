@@ -6,6 +6,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -66,6 +68,32 @@ fun TelikTvApp() {
     var status by remember { mutableStateOf("Подключение к открытому каталогу…") }
     var showSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val importJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            status = "Импортируем JSON-файл…"
+            try {
+                val raw = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        ?: error("Не удалось открыть файл")
+                }
+                val imported = parseChannels(raw)
+                require(imported.isNotEmpty()) { "В JSON нет каналов с поддерживаемыми HTTPS-адресами" }
+                val saved = prefs.getString("imported_catalogue_json", "[]") ?: "[]"
+                val combined = (parseChannels(saved) + imported).distinctBy { it.id }
+                val stored = org.json.JSONArray()
+                combined.forEach { c ->
+                    stored.put(JSONObject().put("id", c.id).put("name", c.name).put("url", c.url)
+                        .put("category", c.category).put("logo", c.logo).put("embedUrl", c.embedUrl))
+                }
+                prefs.edit().putString("imported_catalogue_json", stored.toString()).apply()
+                channels = (channels + imported).distinctBy { it.id }
+                status = "Импортировано: ${imported.size}. Всего каналов: ${channels.size}"
+                if (selected == null && channels.isNotEmpty()) selected = channels.first()
+            } catch (e: Exception) {
+                status = "Ошибка импорта JSON: ${e.localizedMessage ?: "неверный файл"}"
+            }
+        }
+    }
 
     fun loadCatalogue() {
         scope.launch {
@@ -79,26 +107,10 @@ fun TelikTvApp() {
                         setRequestProperty("User-Agent", "Telik-TV/1.0")
                     }
                     val text = connection.getInputStream().bufferedReader().use { it.readText() }
-                    val root = JSONObject(text)
-                    val array = root.getJSONArray("channels")
-                    (0 until array.length()).mapNotNull { i ->
-                        val item = array.getJSONObject(i)
-                        val stream = item.optString("url").ifBlank { item.optString("streamUrl") }
-                        val embed = item.optString("embedUrl")
-                        val validStream = stream.startsWith("https://")
-                        val validEmbed = isAllowedEmbed(embed)
-                        if (!validStream && !validEmbed) null else Channel(
-                            item.optString("id").ifBlank { stream.ifBlank { embed } },
-                            item.optString("name", "Канал"),
-                            if (validStream) stream else "",
-                            item.optString("category", "Другое"),
-                            item.optString("logo"),
-                            if (validEmbed) embed else ""
-                        )
-                    }
+                    parseChannels(text) + parseChannels(prefs.getString("imported_catalogue_json", "[]") ?: "[]")
                 }
-                channels = loaded
-                status = if (loaded.isEmpty()) "Каталог доступен, но в нём нет каналов" else "Каналов загружено: ${loaded.size}"
+                channels = loaded.distinctBy { it.id }
+                status = if (channels.isEmpty()) "Каталог доступен, но в нём нет каналов" else "Каналов загружено: ${channels.size}"
                 if (selected == null && loaded.isNotEmpty()) selected = loaded.first()
             } catch (e: Exception) {
                 status = "Ошибка каталога: ${e.localizedMessage ?: "проверьте интернет"}"
@@ -148,6 +160,7 @@ fun TelikTvApp() {
                     TextButton(onClick = { category = "Все"; onlyFavorites = false }) { Text("Все") }
                     TextButton(onClick = { category = "Избранное"; onlyFavorites = true }) { Text("Избранное") }
                     TextButton(onClick = { showSettings = true }) { Text("Настройки") }
+                    TextButton(onClick = { importJsonLauncher.launch(arrayOf("application/json", "text/json", "*/*")) }) { Text("Импорт JSON") }
                 }
                 val categories = channels.map { it.category }.distinct()
                 Row {
@@ -227,4 +240,24 @@ private fun OfficialEmbedPlayer(embedUrl: String, modifier: Modifier = Modifier)
             }
         }
     )
+}
+
+private fun parseChannels(raw: String): List<Channel> {
+    val root = JSONObject(raw)
+    val array = root.optJSONArray("channels") ?: return emptyList()
+    return (0 until array.length()).mapNotNull { i ->
+        val item = array.optJSONObject(i) ?: return@mapNotNull null
+        val stream = item.optString("url").ifBlank { item.optString("streamUrl") }
+        val embed = item.optString("embedUrl")
+        val validStream = stream.startsWith("https://")
+        val validEmbed = isAllowedEmbed(embed)
+        if (!validStream && !validEmbed) null else Channel(
+            item.optString("id").ifBlank { stream.ifBlank { embed } },
+            item.optString("name", "Канал"),
+            if (validStream) stream else "",
+            item.optString("category", "Другое"),
+            item.optString("logo"),
+            if (validEmbed) embed else ""
+        )
+    }
 }
