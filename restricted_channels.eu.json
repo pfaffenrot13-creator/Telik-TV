@@ -80,6 +80,12 @@
       "playbackEnabled": false
     },
     {
+      "id": "ria-fan",
+      "name": "RIA FAN",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
       "id": "ria-novosti",
       "name": "RIA Novosti",
       "restrictedInEU": true,
