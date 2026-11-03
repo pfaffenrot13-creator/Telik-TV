@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,6 +71,7 @@ fun TelikTvApp() {
     var catalogueUrl by remember { mutableStateOf(prefs.getString("catalogue_url", DEFAULT_CATALOGUE) ?: DEFAULT_CATALOGUE) }
     var status by remember { mutableStateOf("Подключение к открытому каталогу…") }
     var showSettings by remember { mutableStateOf(false) }
+    var showVideoLink by remember { mutableStateOf(prefs.getBoolean("show_video_link", false)) }
     val scope = rememberCoroutineScope()
     val importJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
@@ -152,14 +154,17 @@ fun TelikTvApp() {
                     if (selected == null) Text("Выберите канал", color = Color.White)
                     IconButton(
                         onClick = { isFullscreen = !isFullscreen },
-                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color(0x99000000), RoundedCornerShape(8.dp))
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).background(Color(0x99000000), RoundedCornerShape(8.dp))
                     ) {
-                        Icon(Icons.Default.Fullscreen, "На весь экран", tint = Color.White)
+                        Icon(Icons.Default.KeyboardArrowUp, "Развернуть видео", tint = Color.White)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(selected?.name ?: status, color = Color.White, fontSize = 18.sp)
                 Text(status, color = Color.LightGray, fontSize = 12.sp)
+                if (showVideoLink && selected != null) {
+                    Text(selected!!.url.ifBlank { selected!!.embedUrl }, color = Color(0xFF70D6C1), fontSize = 11.sp, maxLines = 2)
+                }
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -219,10 +224,18 @@ fun TelikTvApp() {
         }
         if (showSettings) AlertDialog(
             onDismissRequest = { showSettings = false },
-            title = { Text("Каталог каналов") },
-            text = { OutlinedTextField(catalogueUrl, { catalogueUrl = it }, label = { Text("HTTPS URL channels.json") }) },
+            title = { Text("Настройки") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(catalogueUrl, { catalogueUrl = it }, label = { Text("HTTPS URL channels.json") })
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = showVideoLink, onCheckedChange = { showVideoLink = it })
+                        Text("Показывать ссылку на видео")
+                    }
+                }
+            },
             confirmButton = { TextButton(onClick = {
-                prefs.edit().putString("catalogue_url", catalogueUrl.trim()).apply()
+                prefs.edit().putString("catalogue_url", catalogueUrl.trim()).putBoolean("show_video_link", showVideoLink).apply()
                 catalogueUrl = catalogueUrl.trim()
                 showSettings = false
                 loadCatalogue()
@@ -248,7 +261,7 @@ private fun socialEmbedUrl(raw: String): String? {
         val vkHost = host == "vk.com" || host.endsWith(".vk.com") ||
             host == "vkvideo.ru" || host.endsWith(".vkvideo.ru")
         if (vkHost) {
-            if (path.contains("video_ext.php")) return raw
+            if (path.contains("video")) return raw
             val match = Regex("video(-?\\d+)_(\\d+)(?:_([A-Za-z0-9]+))?").find(raw) ?: return null
             val oid = match.groupValues[1]
             val id = match.groupValues[2]
@@ -273,6 +286,11 @@ private fun OfficialEmbedPlayer(embedUrl: String, modifier: Modifier = Modifier)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
+                settings.javaScriptCanOpenWindowsAutomatically = true
+                settings.setSupportMultipleWindows(true)
+                settings.userAgentString = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
                 webChromeClient = WebChromeClient()
