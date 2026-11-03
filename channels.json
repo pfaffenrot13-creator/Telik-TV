@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updatedAt": "2026-11-03",
-  "source": "Publicly accessible broadcaster livestream endpoints. Availability and territorial rights may vary; channels are included as links only.",
+  "source": "Official free broadcaster livestreams; availability and territorial rights may vary.",
   "channels": [
     {
       "id": "ard-das-erste",
@@ -106,10 +106,16 @@
       "category": "Новости"
     },
     {
-      "id": "dw",
-      "name": "Deutsche Welle",
-      "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
-      "category": "Новости"
+      "id": "dw-russian",
+      "name": "DW на русском",
+      "url": "https://dwamdstream110.akamaized.net/hls/live/2017971/dwstream110/master.m3u8",
+      "category": "Русские новости"
+    },
+    {
+      "id": "current-time",
+      "name": "Настоящее Время",
+      "url": "https://rfe-ingest.akamaized.net/hls/live/2033043/tvmc05/master.m3u8",
+      "category": "Русские новости"
     }
   ]
 }
