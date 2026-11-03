@@ -116,6 +116,12 @@
       "name": "Настоящее Время",
       "url": "https://rfe-ingest.akamaized.net/hls/live/2033043/tvmc05/master.m3u8",
       "category": "Русские новости"
+    },
+    {
+      "id": "cgtn-russian",
+      "name": "CGTN Русский",
+      "url": "https://news.cgtn.com/resource/live/russian/cgtn-r.m3u8",
+      "category": "Русские новости"
     }
   ]
 }
