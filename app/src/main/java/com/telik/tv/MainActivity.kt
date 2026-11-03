@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -64,6 +66,7 @@ fun TelikTvApp() {
     var category by remember { mutableStateOf("Все") }
     var favorites by remember { mutableStateOf(prefs.getStringSet("favorites", emptySet()) ?: emptySet()) }
     var onlyFavorites by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
     var catalogueUrl by remember { mutableStateOf(prefs.getString("catalogue_url", DEFAULT_CATALOGUE) ?: DEFAULT_CATALOGUE) }
     var status by remember { mutableStateOf("Подключение к открытому каталогу…") }
     var showSettings by remember { mutableStateOf(false) }
@@ -139,12 +142,20 @@ fun TelikTvApp() {
                 Spacer(Modifier.height(8.dp))
                 Box(Modifier.weight(1f).fillMaxWidth().background(Color.Black, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                     val current = selected
-                    if (current?.embedUrl?.isNotBlank() == true) {
-                        OfficialEmbedPlayer(current.embedUrl, Modifier.fillMaxSize())
-                    } else {
-                        AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
+                    if (!isFullscreen) {
+                        if (current?.embedUrl?.isNotBlank() == true) {
+                            OfficialEmbedPlayer(current.embedUrl, Modifier.fillMaxSize())
+                        } else {
+                            AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
+                        }
                     }
                     if (selected == null) Text("Выберите канал", color = Color.White)
+                    IconButton(
+                        onClick = { isFullscreen = !isFullscreen },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color(0x99000000), RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(Icons.Default.Fullscreen, "На весь экран", tint = Color.White)
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(selected?.name ?: status, color = Color.White, fontSize = 18.sp)
@@ -157,8 +168,14 @@ fun TelikTvApp() {
                     IconButton(onClick = { loadCatalogue() }) { Icon(Icons.Default.Refresh, "Обновить", tint = Color.White) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    TextButton(onClick = { category = "Все"; onlyFavorites = false }) { Text("Все") }
-                    TextButton(onClick = { category = "Избранное"; onlyFavorites = true }) { Text("Избранное") }
+                    TextButton(
+                        onClick = { category = "Все"; onlyFavorites = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = if (category == "Все" && !onlyFavorites) Color(0xFF70D6C1) else Color.White)
+                    ) { Text("Все") }
+                    TextButton(
+                        onClick = { category = "Избранное"; onlyFavorites = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = if (onlyFavorites) Color(0xFFFF6B81) else Color.White)
+                    ) { Text("Избранное") }
                     TextButton(onClick = { showSettings = true }) { Text("Настройки") }
                     TextButton(onClick = { importJsonLauncher.launch(arrayOf("application/json", "text/json", "*/*")) }) { Text("Импорт JSON") }
                 }
@@ -181,6 +198,22 @@ fun TelikTvApp() {
                             }
                         }
                     }
+                }
+            }
+        }
+        if (isFullscreen) {
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                val current = selected
+                if (current?.embedUrl?.isNotBlank() == true) {
+                    OfficialEmbedPlayer(current.embedUrl, Modifier.fillMaxSize())
+                } else {
+                    AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
+                }
+                IconButton(
+                    onClick = { isFullscreen = false },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).background(Color(0x99000000), RoundedCornerShape(8.dp))
+                ) {
+                    Icon(Icons.Default.FullscreenExit, "Выйти из полного экрана", tint = Color.White)
                 }
             }
         }
