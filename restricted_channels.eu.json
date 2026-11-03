@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-03",
+  "purpose": "Reference-only list of media entities subject to the EU broadcasting restrictions. This file contains no stream URLs and is not a playable channel catalogue.",
+  "jurisdiction": "EU",
+  "legalBasis": "Council Regulation (EU) No 833/2014, Article 2f and Annex XV, as amended.",
+  "source": "https://www.consilium.europa.eu/en/policies/sanctions-against-russia/",
+  "playbackEnabled": false,
+  "channels": [
+    {
+      "id": "eadaily",
+      "name": "EADaily / Eurasia Daily",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "fondsk",
+      "name": "Fondsk",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "izvestia",
+      "name": "Izvestia",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "katehon",
+      "name": "Katehon",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "krasnaya-zvezda",
+      "name": "Krasnaya Zvezda / Tvzvezda",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "lenta",
+      "name": "Lenta",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "new-eastern-outlook",
+      "name": "New Eastern Outlook",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "newsfront",
+      "name": "NewsFront",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "ntv-ntv-mir",
+      "name": "NTV / NTV Mir",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "oriental-review",
+      "name": "Oriental Review",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "pervyi-kanal",
+      "name": "Pervyi Kanal / Первый канал",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "ren-tv",
+      "name": "REN TV",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "ria-novosti",
+      "name": "RIA Novosti",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "rubaltic",
+      "name": "RuBaltic",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "russia-today",
+      "name": "Russia Today and its subsidiaries",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "rossiya-rtr",
+      "name": "Rossiya RTR / RTR Planeta",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "rossiya-24",
+      "name": "Rossiya 24 / Russia 24",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "rossiya-1",
+      "name": "Rossiya 1",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "rossiyskaya-gazeta",
+      "name": "Rossiyskaya Gazeta",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "southfront",
+      "name": "SouthFront",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "spas",
+      "name": "Spas TV Channel",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "sputnik",
+      "name": "Sputnik and its subsidiaries",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "strategic-culture",
+      "name": "Strategic Culture Foundation",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "tsargrad",
+      "name": "Tsargrad TV Channel",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "tv-centre-international",
+      "name": "TV Centre International",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    },
+    {
+      "id": "voice-of-europe",
+      "name": "Voice of Europe",
+      "restrictedInEU": true,
+      "playbackEnabled": false
+    }
+  ]
+}
