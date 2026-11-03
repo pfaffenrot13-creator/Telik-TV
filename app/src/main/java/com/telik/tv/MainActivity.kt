@@ -200,20 +200,36 @@ fun TelikTvApp() {
 }
 
 
-private fun isAllowedEmbed(raw: String): Boolean {
-    if (!raw.startsWith("https://")) return false
+private fun socialEmbedUrl(raw: String): String? {
+    if (!raw.startsWith("https://")) return null
     return try {
-        val host = java.net.URI(raw).host?.lowercase() ?: return false
-        host == "vk.com" || host.endsWith(".vk.com") ||
-            host == "vkvideo.ru" || host.endsWith(".vkvideo.ru") ||
-            host == "ok.ru" || host.endsWith(".ok.ru") ||
-            host == "odnoklassniki.ru" || host.endsWith(".odnoklassniki.ru") ||
-            host == "rutube.ru" || host.endsWith(".rutube.ru") ||
-            host == "stream.1tv.ru"
+        val uri = java.net.URI(raw)
+        val host = uri.host?.lowercase() ?: return null
+        val path = uri.path.orEmpty()
+        val okHost = host == "ok.ru" || host.endsWith(".ok.ru") ||
+            host == "odnoklassniki.ru" || host.endsWith(".odnoklassniki.ru")
+        if (okHost) {
+            val id = Regex("/(?:video|videoembed)/(\\d+)").find(path)?.groupValues?.get(1)
+            return id?.let { "https://ok.ru/videoembed/$it" }
+        }
+        val vkHost = host == "vk.com" || host.endsWith(".vk.com") ||
+            host == "vkvideo.ru" || host.endsWith(".vkvideo.ru")
+        if (vkHost) {
+            if (path.contains("video_ext.php")) return raw
+            val match = Regex("video(-?\\d+)_(\\d+)(?:_([A-Za-z0-9]+))?").find(raw) ?: return null
+            val oid = match.groupValues[1]
+            val id = match.groupValues[2]
+            val hash = match.groupValues.getOrNull(3).orEmpty()
+            return "https://vk.com/video_ext.php?oid=$oid&id=$id" +
+                (if (hash.isNotBlank()) "&hash=$hash" else "") + "&hd=2"
+        }
+        if (host == "rutube.ru" || host.endsWith(".rutube.ru") || host == "stream.1tv.ru") raw else null
     } catch (_: Exception) {
-        false
+        null
     }
 }
+
+private fun isAllowedEmbed(raw: String): Boolean = socialEmbedUrl(raw) != null
 
 @Composable
 private fun OfficialEmbedPlayer(embedUrl: String, modifier: Modifier = Modifier) {
@@ -252,16 +268,17 @@ private fun parseChannels(raw: String): List<Channel> {
     return (0 until array.length()).mapNotNull { i ->
         val item = array.optJSONObject(i) ?: return@mapNotNull null
         val stream = item.optString("url").ifBlank { item.optString("streamUrl") }
-        val embed = item.optString("embedUrl")
-        val validStream = stream.startsWith("https://")
-        val validEmbed = isAllowedEmbed(embed)
-        if (!validStream && !validEmbed) null else Channel(
-            item.optString("id").ifBlank { stream.ifBlank { embed } },
+        val explicitEmbed = item.optString("embedUrl")
+        val socialFromStream = socialEmbedUrl(stream)
+        val resolvedEmbed = socialEmbedUrl(explicitEmbed) ?: socialFromStream
+        val validStream = stream.startsWith("https://") && socialFromStream == null
+        if (!validStream && resolvedEmbed == null) null else Channel(
+            item.optString("id").ifBlank { stream.ifBlank { explicitEmbed } },
             item.optString("name", "Канал"),
             if (validStream) stream else "",
             item.optString("category", "Другое"),
             item.optString("logo"),
-            if (validEmbed) embed else ""
+            resolvedEmbed ?: ""
         )
     }
 }
